@@ -34,7 +34,7 @@ evalE env (Con "True") = B True
 evalE env (Con "False") = B False
 
 -- Primitive Operations
-evalE env (App (App (Prim Op e1)) e2) = 
+evalE env (App (App (Prim Op) e1) e2) = 
   let I val1 = evalE env e1 
       I val2 = evalE env e2
   in case Op of
@@ -57,3 +57,39 @@ evalE env (App (Prim Neg e1)) =
   let I val = evalE env e1
   in I (negate(val))
 
+-- Evaluation of if-expression
+evalE env (If cond exprT exprF) =
+  let B bool = evalE env cond 
+  in case bool of
+    (B True)  -> evalE env exprT 
+    (B False) -> evalE env exprF
+
+-- Variables
+evalE env (Var ident) = 
+  let I val = evalE E.lookup ident 
+  in case val of 
+    Just v -> v
+    _      -> error "Variable not in scope"
+
+-- List constructors and primops
+evalE env (Con "Nil") = Nil
+evalE env (App (App (Con "Cons") integer) value) = 
+  let I val1 = evalE env integer 
+  in Cons val1 (evalE env value)
+evalE env (App (Prim Head) list) = 
+  let Value x = evalE env list
+  in case x of 
+    (Cons v _) -> I v 
+    (Nil)      -> error "Empty list"
+evalE env (App (Prim Tail) list) = 
+  let Value x = evalE env list 
+  in case x of 
+    (Cons _ vs) -> Value vs 
+    (Nil)       -> error "Empty list"
+evalE env (App (Prim Null) list) =
+  let Value x = evalE env list 
+  in case x of 
+    (Cons _:_) -> B False
+    (Nil)      -> B True
+
+-- Variable Bindings with Let 
