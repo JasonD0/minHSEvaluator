@@ -34,26 +34,27 @@ module MinHS.Evaluator where
     | bool == "False" = B False
   
   -- Primitive Operations
-  evalE env (App (App (Prim Op) e1) e2) = 
+  -- errors  16     15, 13 hex -> prob diff for test machine
+  evalE env (App (App (Prim operation) e1) e2) = 
     let I val1 = evalE env e1 
         I val2 = evalE env e2
-    in case Op of
+    in case operation of
       (Add)  -> I (val1 + val2)
       (Sub)  -> I (val1 - val2)
       (Mul)  -> I (val1 * val2)
       (Quot) -> case val2 of
                   (0)  -> error "Division by 0"
-                  _   -> I (quot val1 val2) 
+                  _    -> I (quot val1 val2) 
       (Rem)  -> case val2 of 
                   (0)  -> error "Division by 0"
-                  _   -> I (rem val1 val2)
+                  _    -> I (rem val1 val2)
       (Gt)   -> B (val1 > val2)
       (Ge)   -> B (val1 >= val2)
       (Lt)   -> B (val1 < val2)
       (Le)   -> B (val1 <= val2)
       (Eq)   -> B (val1 == val2)
       (Ne)   -> B (val1 /= val2)
-  evalE env (App (Prim Neg e1)) =
+  evalE env (App (Prim Neg) e1) =
     let I val = evalE env e1
     in I (negate(val))
   
@@ -61,15 +62,14 @@ module MinHS.Evaluator where
   evalE env (If cond exprT exprF) =
     let B bool = evalE env cond 
     in case bool of
-      (B True)  -> evalE env exprT 
-      (B False) -> evalE env exprF
+      (True)  -> evalE env exprT 
+      (False) -> evalE env exprF
   
   -- Variables
   evalE env (Var ident) = 
-    let I val = evalE E.lookup ident 
-    in case val of 
-      Just v -> v
-      _      -> error "Variable" ++ ident ++ "not in scope"
+    case E.lookup env ident of 
+      (Just v) -> v
+      _        -> error "Variable not in scope"
   
   -- List constructors and primops
   evalE env (Con "Nil") = Nil
@@ -91,10 +91,6 @@ module MinHS.Evaluator where
   
   -- Variable Bindings with Let 
   --evalE env (Let [] expr) = evalE env expr
-  --evalE env (Let (Bind ident _ _ expr1) expr2) = evalE (E.add env (ident, (evalE env expr1)))(Let bs expr2)
-  evalE env (Let list expr2) 
-    | list == [] = evalE env expr2
-    | list == ((Bind ident _ _ expr1):bs) = evalE (E.add env (ident, (evalE env expr1))) (Let bs expr2)
     -- |  need deal with recfun
   
   -- Function 
