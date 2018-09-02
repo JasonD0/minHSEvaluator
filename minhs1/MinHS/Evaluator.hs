@@ -29,9 +29,8 @@ module MinHS.Evaluator where
   evalE env (Num value) = I value
   --evalE env (Con "True") = B True
   --evalE env (Con "False") = B False
-  evalE env (Con bool) 
-    | bool == "True" = B True
-    | bool == "False" = B False
+  evalE env (Con bool)  | bool == "True" = B True
+                        | bool == "False" = B False
   
   -- Primitive Operations
   -- errors  16     15, 13 hex -> prob diff for test machine
@@ -90,9 +89,12 @@ module MinHS.Evaluator where
       (Nil)      -> B True
   
   -- Variable Bindings with Let 
-  --evalE env (Let [] expr) = evalE env expr
-    -- |  need deal with recfun
-  
+  evalE env (Let [] expr) = evalE env expr  -- finished reading all bindings  env will have the binded values 
+  evalE env (Let ((Bind ident types list expr1):bs) expr2) = 
+    case types of 
+      --(Arrow ty1 ty2) -> recfun
+      _               -> evalE (E.add env (ident, (evalE env expr1))) (Let bs expr2)
+
   -- Function 
   -- Function Application
   
