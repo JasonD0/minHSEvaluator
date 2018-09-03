@@ -10,6 +10,7 @@ module MinHS.Evaluator where
              | B Bool
              | Nil
              | Cons Integer Value
+             | Closure VEnv Exp
              -- Others as needed
              deriving (Show)
   
@@ -27,8 +28,6 @@ module MinHS.Evaluator where
   evalE :: VEnv -> Exp -> Value
   -- Constants and Boolean Constructors
   evalE env (Num value) = I value
-  --evalE env (Con "True") = B True
-  --evalE env (Con "False") = B False
   evalE env (Con bool)  | bool == "True" = B True
                         | bool == "False" = B False
   
@@ -76,18 +75,21 @@ module MinHS.Evaluator where
     let I val1 = evalE env integer 
     in Cons val1 (evalE env value)
   evalE env (App (Prim Head) list) = 
-    case evalE env list of 
-      (Cons v _) -> I v 
-      (Nil)      -> error "Empty list"
+    let x = evalE env list 
+    in case x of 
+        (Cons v _) -> I v 
+        (Nil)      -> error "Empty list"
   evalE env (App (Prim Tail) list) = 
-    case evalE env list of 
-      (Cons _ vs) -> vs 
-      (Nil)       -> error "Empty list"
+    let x = evalE env list 
+    in case x of 
+        (Cons _ vs) -> vs 
+        (Nil)       -> error "Empty list"
   evalE env (App (Prim Null) list) =
-    case evalE env list of 
-      (Cons _ _) -> B False
-      (Nil)      -> B True
-  
+    let x = evalE env list 
+    in case x of 
+        (Cons _ _) -> B False
+        (Nil)      -> B True
+    
   -- Variable Bindings with Let 
   evalE env (Let [] expr) = evalE env expr  -- finished reading all bindings  env will have the binded values 
   evalE env (Let ((Bind ident types list expr1):bs) expr2) = 
@@ -96,5 +98,17 @@ module MinHS.Evaluator where
       _               -> evalE (E.add env (ident, (evalE env expr1))) (Let bs expr2)
 
   -- Function 
+  evalE env (Recfun (Bind ident (Arrow typ1 typ2) list expr)) = Closure env (Recfun (Bind ident (Arrow typ1 typ2) list expr))
+  evalE env (Recfun (Bind ident types [] expr)) = evalE (E.add env (ident, (evalE env expr))) expr 
+
   -- Function Application
-  
+  evalE env (App expr1 expr2) =
+    let x = evalE env expr1
+    in case x of 
+        --apply e2 to expr (function) since no more args   env should have values of args
+        -- add function value to env then apply value of expr2 to function 
+        (Closure exprEnv (Recfun (Bind ident (Arrow typ1 typ2) [] expr))) -> evalE (E.add exprEnv (ident, (Closure exprEnv (Recfun(Bind ident (Arrow typ1 typ2) [] expr))))) (App expr expr2)
+        -- function still has args    add function value to env   and   add value of first arg (eval of expr2)
+        (Closure exprEnv (Recfun (Bind ident types (a:as) expr)))         -> evalE (E.addAll exprEnv [(ident, (Closure exprEnv (Recfun (Bind ident types (a:as) expr)))), (a, (evalE env expr2))]) expr
+        _                                                                 -> x
+     
